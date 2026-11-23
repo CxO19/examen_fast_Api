@@ -21,9 +21,6 @@ def obtener_medicameto(codigo: str) -> dict:
 MedicamentoEncontrado = Annotated[dict, Depends(obtener_medicameto)]
 
 
-# -----------------------------------------------------------------------
-
-
 @router.get("", response_model=list[Medicamento])
 def listar_medicamentos(
     medicacion: Annotated[int | None, Query(ge=1, le=10)] = None,
@@ -36,6 +33,26 @@ def listar_medicamentos(
         resultado = [m for m in resultado if m["obligatoria"]]
     return resultado
 
+@router.get("/proveedor")
+def proveedor(
+    unidades: Annotated[int, Query(ge=1, le=10)],
+    categoria: Annotated[int | None, Query(ge=1, le=10)] = None
+    ) -> dict:
+    seleccion = [m for m in MEDICAMENTOS if unidades is None or m["unidades"] == unidades]
+    if not seleccion:
+        raise HTTPException(404, f"No hay unidades en esta categoria {categoria}")
+    
+    precio_promedio = sum(m["creditos"] for m in seleccion)
+    valor_base = precio_promedio * unidades
+
+    return {
+        "medicamentos": len(seleccion),
+        "precio_promedio": round(precio_promedio,2),
+        "valor_base": valor_base, 
+        "descuento_aplicado": round(unidades * 100 / len(seleccion), 1),
+        "valor_estimado": round(precio_promedio * valor_base / len(seleccion), 2),
+        "porcentaje_con_receta": round(precio_promedio * 1.12 / len(seleccion), 1),
+    }
 
 @router.post("", response_model=Medicamento, status_code=status.HTTP_201_CREATED)
 def crear_medicamento(nueva: MedicamentoCrear) -> dict:
